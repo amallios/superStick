@@ -20,6 +20,7 @@ function preload() {
 function setup () {
     createCanvas(1024, 576, noLoop());
     floorPos_y = height * 3/4;
+    themeSound.loop();
 
     // Create Game Character
     gameChar = createGameCharacter();
@@ -28,7 +29,6 @@ function setup () {
 
     startGame();
 }
-
 function draw () {
     background('skyblue');
     noStroke();
@@ -155,7 +155,6 @@ function keyPressed(){
         draw();
     }
 }
-
 function keyReleased() {
     if(keyCode == 37){
         gameChar.isLeft=false;
@@ -165,7 +164,6 @@ function keyReleased() {
 }
 
 // Back-End functions
-
 function startGame() {
     // Initial character position
     gameChar.x = width/5;
@@ -204,9 +202,6 @@ function startGame() {
     for (var i=0; i<collectables.length; i++) {
         fires.push(new Fire(collectables[i].x, collectables[i].y));
     }
-
-    // Play background music
-    themeSound.loop();
 
     // Variable to control the background scrolling.
     scrollPos = 0;
@@ -366,7 +361,7 @@ function createGameCharacter() {
                     this.isPlummeting = false;
                     lifeSound.play();
                     startGame();
-                    themeSound.start();
+                    themeSound.play();
                 }
             }
         }
@@ -493,11 +488,16 @@ function createCollectable(x,y) {
         },
 
         check: function () {
-            if (dist(gameChar_world_x, gameChar.y - 35, this.x, this.y) <= 25) {
+            // Check rectangle overlap - rect(x1, y1, x2, y2)
+            // charRect = rect(gc_x-10, gc_y-80, gc_x+10, gc_y);
+            // fishRect = rect(this.x-10, this.currentY-20, this.x+10, this.currentY);
+            // RectA.Left < RectB.Right && RectA.Right > RectB.Left && RectA.Top > RectB.Bottom && RectA.Bottom < RectB.Top
+            if (gameChar_world_x-10 < this.x+5 && gameChar_world_x+10 > this.x-5 && gameChar.y-80 < this.y+5 && gameChar.y > this.y-5) {
                 this.isFound = true;
                 gameChar.score++;
                 coinSound.play();
             }
+            return false;
         },
 
         draw: function () {
@@ -543,8 +543,11 @@ function Fish(x, y) {
         pop()
     }
     this.checkContact = function (gc_x, gc_y) {
-        var d = dist(gc_x, gc_y-50, this.x, this.currentY)
-        if (d<20) {
+        // Check rectangle overlap - rect(x1, y1, x2, y2)
+        // charRect = rect(gc_x-10, gc_y-80, gc_x+10, gc_y);
+        // fishRect = rect(this.x-10, this.currentY-20, this.x+10, this.currentY);
+        // RectA.Left < RectB.Right && RectA.Right > RectB.Left && RectA.Top > RectB.Bottom && RectA.Bottom < RectB.Top
+        if (gc_x-10 < this.x+10 && gc_x+10 > this.x-10 && gc_y-80 < this.currentY+20 && gc_y > this.currentY-20) {
             return true;
         }
         return false;
@@ -553,41 +556,31 @@ function Fish(x, y) {
 function Fire(x, y) {
     this.x = x;
     this.y = y;
-
-    this.currentX = x;
-    this.currentY = y;
-    this.inc = 4;
-    this.range = 200;
+    this.currentX = 0;
+    this.currentY = 0;
+    let f = createVector(this.x, this.y);
+    let v = p5.Vector.mult(f, 0.1);
 
     this.update = function () {
-        var r = 0;
-        if (r=1) {
-            this.currentX += this.inc;
-            if (this.currentX >= this.x + this.range) {
-                this.inc *= -1;
-            } else if (this.currentX < this.x) {
-                this.inc *= -1;
-            }
-        } else {
-            this.currentY += this.inc;
-            if (this.currentY >= this.y + this.range) {
-                this.inc *= -1;
-            } else if (this.currentY < this.y) {
-                this.inc *= -1;
-            }
-        }
-
+        v.rotate(0.05);
+        this.currentX = x+v.x;
+        this.currentY = y+v.y;
     }
+
     this.draw = function () {
         this.update();
-        push()
+        push();
         fill('red');
-        ellipse(this.currentX-100, this.currentY, 20, 20);
-        pop()
+        translate(this.x, this.y)
+        ellipse(v.x, v.y, 20, 20);
+        pop();
     }
     this.checkContact = function (gc_x, gc_y) {
-        var d = dist(gc_x, gc_y-25, this.currentX, this.currentY)
-        if (d<20) {
+        // Check rectangle overlap - rect(x1, y1, x2, y2)
+        // charRect = rect(gc_x-10, gc_y-80, gc_x+10, gc_y);
+        // fireRect = rect(this.currentX-10, this.currentY-20, this.currentX+10, this.currentY+20);
+        // RectA.Left < RectB.Right && RectA.Right > RectB.Left && RectA.Top > RectB.Bottom && RectA.Bottom < RectB.Top
+        if (gc_x-10 < this.currentX+10 && gc_x+10 > this.currentX-10 && gc_y-80 < this.currentY+10 && gc_y > this.currentY-10) {
             return true;
         }
         return false;
