@@ -1,25 +1,7 @@
-// -----
-// Intro
-// -----
+var gameChar, mountains, clouds, trees, canyons, collectables, flagpole, fishes, fires, scrollPos,
+    gameChar_world_x, floorPos_y, jumpSound, coinSound, levelSound, lifeSound, themeSound, gameStatus;
 
-// Table of contents
-
-// Extension 1 - Comment
-
-// Extension 2 - Comment
-
-// -----------------
-// Declare Variables
-// -----------------
-
-var gameChar, mountains, clouds, trees, canyons, collectables, flagpole, fishes, fires;
-var scrollPos, gameChar_world_x, floorPos_y;
-var jumpSound, coinSound, levelSound, lifeSound, themeSound;
-
-// ---------------
-// p5.js Functions
-// ---------------
-
+// p5.js functions
 function preload() {
     soundFormats('mp3','wav');
 
@@ -35,150 +17,200 @@ function preload() {
     themeSound = loadSound('media/soundfiles/theme.wav');
     themeSound.setVolume(0.1);
 }
-
 function setup () {
-    createCanvas(1024, 576);
+    createCanvas(1024, 576, noLoop());
     floorPos_y = height * 3/4;
+    themeSound.loop();
 
     // Create Game Character
     gameChar = createGameCharacter();
 
-    // Initialise game
+    gameStatus=isLooping();
+
     startGame();
 }
-
 function draw () {
     background('skyblue');
     noStroke();
     fill('forestgreen');
     rect(0, floorPos_y, width, height/4);
 
-    // Save drawing style settings
-    push();
-    translate(scrollPos, 0);
+    // Gameplay instructions
+    if (isLooping()==false) {
+        push();
+        textSize(32)
+        fill('red')
+        text("Superstick", 20, 150);
+        textSize(24)
+        fill('black')
+        text("Avoid enemies, collect coins and reach the finish flag to win", 20, 200);
+        text("Use the ARROW KEYS to move superstick", 20, 250);
+        text("Use the SPACEBAR to jump", 20, 300);
+        text("Press ENTER to start game", 20, 350);
+        pop();
+    } else {
+        // Save drawing style settings
+        push();
+        translate(scrollPos, 0);
 
-    // Draw mountains
-    for (var i=0; i<mountains.length; i++) {
-        mountains[i].draw();
-    }
-
-    // Draw clouds
-    for (var i=0; i<clouds.length; i++) {
-        clouds[i].draw();
-    }
-
-    // Draw trees
-    for (var i=0; i<trees.length; i++) {
-        trees[i].draw();
-    }
-
-    // Draw and check canyons
-    for (var i=0; i<canyons.length; i++) {
-        canyons[i].draw();
-        canyons[i].check();
-    }
-
-    // Draw and check collectables
-    for (var i=0; i<collectables.length; i++) {
-        if (!collectables[i].isFound) {
-            collectables[i].check();
-            collectables[i].draw();
+        // Draw mountains
+        for (var i=0; i<mountains.length; i++) {
+            mountains[i].draw();
         }
-    }
 
-    // Draw flagpole
-    flagpole.check();
-    flagpole.draw();
+        // Draw clouds
+        for (var i=0; i<clouds.length; i++) {
+            clouds[i].draw();
+        }
 
-    // Draw enemies
-    for (var i=0; i<fishes.length; i++) {
-        fishes[i].draw();
-        var isContact = fishes[i].checkContact(gameChar_world_x, gameChar.y);
-        if (isContact) {
-            if(gameChar.lives >0) {
-                gameChar.lives--;
-                themeSound.stop();
-                startGame();
-                break;
+        // Draw trees
+        for (var i=0; i<trees.length; i++) {
+            trees[i].draw();
+        }
+
+        // Draw and check canyons
+        for (var i=0; i<canyons.length; i++) {
+            canyons[i].draw();
+            canyons[i].check();
+        }
+
+        // Draw and check collectables
+        for (var i=0; i<collectables.length; i++) {
+            if (!collectables[i].isFound) {
+                collectables[i].check();
+                collectables[i].draw();
             }
         }
-    }
 
-    for (var i=0; i<fires.length; i++) {
-        fires[i].draw();
-        var isContact = fires[i].checkContact(gameChar_world_x, gameChar.y);
-        if (isContact) {
-            if (gameChar.lives > 0) {
-                gameChar.lives--;
-                themeSound.stop();
-                startGame();
-                break;
+        // Draw flagpole
+        flagpole.check();
+        flagpole.draw();
+
+        // Draw enemies
+        for (var i=0; i<fishes.length; i++) {
+            fishes[i].draw();
+            var isContact = fishes[i].checkContact(gameChar_world_x, gameChar.y);
+            if (isContact) {
+                if(gameChar.lives >0) {
+                    gameChar.lives--;
+                    lifeSound.play();
+                    themeSound.stop();
+                    startGame();
+                    break;
+                }
             }
         }
+
+        for (var i=0; i<fires.length; i++) {
+            fires[i].draw();
+            var isContact = fires[i].checkContact(gameChar_world_x, gameChar.y);
+            if (isContact) {
+                if (gameChar.lives > 0) {
+                    gameChar.lives--;
+                    lifeSound.play();
+                    themeSound.stop();
+                    startGame();
+                    break;
+                }
+            }
+        }
+        // Restore drawing style settings
+        pop();
+
+        // Draw game character.
+        gameChar.draw();
+        gameChar.move();
+        gameChar.checkLives();
+
+        // Draw score
+        drawScore();
+
+        // Draw lives
+        for (var i=gameChar.lives; i>0; i--) {
+            drawLives(gameChar.lives);
+        }
+
+        // Win or lose logic
+        checkWinLose();
+
+        // Update real position of gameChar for collision detection.
+        gameChar_world_x = gameChar.x - scrollPos;
     }
-    // Restore drawing style settings
-    pop();
-
-    // Draw game character.
-    gameChar.draw();
-    gameChar.move();
-    gameChar.checkLives();
-
-    // Draw score
-    drawScore();
-
-    // Draw lives
-    for (var i=gameChar.lives; i>0; i--) {
-        drawLives(gameChar.lives);
-    }
-
-    // Win or lose logic
-    winLose();
-
-    // Update real position of gameChar for collision detection.
-    gameChar_world_x = gameChar.x - scrollPos;
 }
 
-// -----------------
-// BackEnd Mechanics
-// -----------------
+// Gameplay functions
+function keyPressed(){
+    if(keyCode == 37){
+        gameChar.isLeft=true;
+    } else if (keyCode == 39){
+        gameChar.isRight=true;
+    }
+    if(keyCode == 32 && gameChar.y==floorPos_y){
+        gameChar.y -= 100;
+        jumpSound.play();
+    }
+    if(keyCode == 13) {
+        loop();
+    }
+    if(keyCode == 82 && (gameChar.lives==0 || flagpole.isReached)){
+        setup();
+        draw();
+    }
+}
+function keyReleased() {
+    if(keyCode == 37){
+        gameChar.isLeft=false;
+    } else if (keyCode == 39){
+        gameChar.isRight=false;
+    }
+}
 
-// Game mechanics
+// Back-End functions
 function startGame() {
     // Initial character position
-    gameChar.x = width/5;
+    gameChar.x = width/10;
     gameChar.y = floorPos_y;
 
     // Create mountains
     mountains = [];
-    mountains.push(createMountain(100));
+    mountains.push(createMountain(500));
+    mountains.push(createMountain(750));
+    mountains.push(createMountain(1800));
+    mountains.push(createMountain(2400));
 
     // Create clouds
     clouds = [];
-    clouds.push(createCloud(400, 100));
+    for (var i=0; i<10; i++) {
+        clouds.push(createCloud(150+i*200*random(0.9, 1.1), random(100, 250)));
+    }
 
     // Create trees
     trees = [];
-    trees.push(createTree(800));
+    trees.push(createTree(500));
+    trees.push(createTree(1000));
+    trees.push(createTree(1200));
+    trees.push(createTree(1300));
+    trees.push(createTree(1600));
+    trees.push(createTree(2000));
+    trees.push(createTree(2100));
+    trees.push(createTree(2300));
 
     // Create canyons
     canyons = [];
-    canyons.push(createCanyon(500));
-    canyons.push(createCanyon(1000));
+    canyons.push(createCanyon(300));
+    canyons.push(createCanyon(1100));
     canyons.push(createCanyon(1500));
-    canyons.push(createCanyon(2000));
-    canyons.push(createCanyon(2500));
 
     // Create collectable
     collectables = [];
-    collectables.push(createCollectable(750, floorPos_y-100));
-    collectables.push(createCollectable(1250, floorPos_y-100));
-    collectables.push(createCollectable(1750, floorPos_y-100));
-    collectables.push(createCollectable(2250, floorPos_y-100));
-    collectables.push(createCollectable(2750, floorPos_y-100));
+    collectables.push(createCollectable(600, floorPos_y-random(50,150)));
+    collectables.push(createCollectable(800, floorPos_y-random(50,150)));
+    collectables.push(createCollectable(1400, floorPos_y-random(50,150)));
+    collectables.push(createCollectable(1750, floorPos_y-random(50,150)));
+    collectables.push(createCollectable(2100, floorPos_y-random(50,150)));
 
     // Create flagpole
-    flagpole = createFlagpole(3000);
+    flagpole = createFlagpole(2500);
 
     // Create enemies
     fishes = [];
@@ -191,17 +223,13 @@ function startGame() {
         fires.push(new Fire(collectables[i].x, collectables[i].y));
     }
 
-    // Play background music
-    themeSound.loop();
-
     // Variable to control the background scrolling.
     scrollPos = 0;
 
     // Variable to store the real position of the gameChar in the game world.
     gameChar_world_x = gameChar.x - scrollPos;
 }
-
-function winLose() {
+function checkWinLose() {
     push();
     if (gameChar.lives<1) {
         textSize(32)
@@ -210,7 +238,8 @@ function winLose() {
         textSize(24)
         fill('black')
         text("Press -R- to restart", 20, 200);
-
+        noLoop();
+        themeSound.stop();
     }
     if (flagpole.isReached) {
         textSize(32)
@@ -218,41 +247,14 @@ function winLose() {
         text("Congratulations!", 20, 150);
         textSize(24)
         fill('black')
-        text("Press -R- to restart", 20, 200);
+        text("Press -R- to play again", 20, 200);
+        noLoop();
+        themeSound.stop();
     }
     pop();
 }
 
-// Key control functions
-function keyPressed(){
-    if(keyCode == 37){
-        gameChar.isLeft=true;
-    } else if (keyCode == 39){
-        gameChar.isRight=true;
-    }
-    if(keyCode == 32 && gameChar.y==floorPos_y){
-        gameChar.y -= 100;
-        jumpSound.play();
-    }
-    if(keyCode == 82) {
-        setup();
-        draw();
-    }
-}
-
-function keyReleased() {
-    if(keyCode == 37){
-        gameChar.isLeft=false;
-    } else if (keyCode == 39){
-        gameChar.isRight=false;
-    }
-}
-
-// -----------------
-// FrontEnd Elements
-// -----------------
-
-// Game character
+// Front-End functions
 function createGameCharacter() {
     var c = {
         setup: function (x, y, isLeft, isRight, isFalling, isPlummeting, lives, score) {
@@ -347,18 +349,18 @@ function createGameCharacter() {
         move: function () {
             // Logic to make the game character move or the background scroll.
             if(gameChar.isLeft) {
-                if(gameChar.x > width * 0.2) {
-                    gameChar.x -= 5;
+                if(gameChar.x > width * 0.5) {
+                    gameChar.x -= 4;
                 } else {
-                    scrollPos += 5;
+                    scrollPos += 4;
                 }
             }
 
             if(gameChar.isRight) {
-                if(gameChar.x < width * 0.8) {
-                    gameChar.x  += 5;
+                if(gameChar.x < width * 0.5) {
+                    gameChar.x  += 4;
                 } else {
-                    scrollPos -= 5;
+                    scrollPos -= 4;
                 }
             }
 
@@ -379,7 +381,7 @@ function createGameCharacter() {
                     this.isPlummeting = false;
                     lifeSound.play();
                     startGame();
-                    themeSound.loop();
+                    themeSound.play();
                 }
             }
         }
@@ -387,8 +389,6 @@ function createGameCharacter() {
     c.setup();
     return c;
 }
-
-// Mountain
 function createMountain(x) {
     var m = {
         x: x,
@@ -414,8 +414,6 @@ function createMountain(x) {
     m.setup(x);
     return m;
 }
-
-// Cloud
 function createCloud(x,y) {
     var c = {
         x: x,
@@ -438,8 +436,6 @@ function createCloud(x,y) {
     c.setup(x,y);
     return c;
 }
-
-// Tree
 function createTree(x) {
     var t = {
         x: x,
@@ -461,8 +457,6 @@ function createTree(x) {
     t.setup(x);
     return t;
 }
-
-// Canyon
 function createCanyon(x) {
     var c = {
         x: x,
@@ -502,8 +496,6 @@ function createCanyon(x) {
     c.setup(x);
     return c;
 }
-
-// Collectable
 function createCollectable(x,y) {
     var c = {
         x: x,
@@ -516,11 +508,16 @@ function createCollectable(x,y) {
         },
 
         check: function () {
-            if (dist(gameChar_world_x, gameChar.y - 35, this.x, this.y) <= 25) {
+            // Check rectangle overlap - rect(x1, y1, x2, y2)
+            // charRect = rect(gc_x-10, gc_y-80, gc_x+10, gc_y);
+            // fishRect = rect(this.x-10, this.currentY-20, this.x+10, this.currentY);
+            // RectA.Left < RectB.Right && RectA.Right > RectB.Left && RectA.Top > RectB.Bottom && RectA.Bottom < RectB.Top
+            if (gameChar_world_x-10 < this.x+5 && gameChar_world_x+10 > this.x-5 && gameChar.y-80 < this.y+5 && gameChar.y > this.y-5) {
                 this.isFound = true;
                 gameChar.score++;
                 coinSound.play();
             }
+            return false;
         },
 
         draw: function () {
@@ -538,8 +535,6 @@ function createCollectable(x,y) {
     c.setup(x,y);
     return c;
 }
-
-// Fish
 function Fish(x, y) {
     this.x = x;
     this.y = y;
@@ -568,60 +563,49 @@ function Fish(x, y) {
         pop()
     }
     this.checkContact = function (gc_x, gc_y) {
-        var d = dist(gc_x, gc_y-50, this.x, this.currentY)
-        if (d<20) {
+        // Check rectangle overlap - rect(x1, y1, x2, y2)
+        // charRect = rect(gc_x-10, gc_y-80, gc_x+10, gc_y);
+        // fishRect = rect(this.x-10, this.currentY-20, this.x+10, this.currentY);
+        // RectA.Left < RectB.Right && RectA.Right > RectB.Left && RectA.Top > RectB.Bottom && RectA.Bottom < RectB.Top
+        if (gc_x-10 < this.x+10 && gc_x+10 > this.x-10 && gc_y-80 < this.currentY+20 && gc_y > this.currentY-20) {
             return true;
         }
         return false;
     }
 }
-
-// Fire
 function Fire(x, y) {
     this.x = x;
     this.y = y;
-
-    this.currentX = x;
-    this.currentY = y;
-    this.inc = 4;
-    this.range = 200;
+    this.currentX = 0;
+    this.currentY = 0;
+    let f = createVector(500, 1000);
+    let v = p5.Vector.mult(f, 0.1);
 
     this.update = function () {
-        var r = 0;
-        if (r=1) {
-            this.currentX += this.inc;
-            if (this.currentX >= this.x + this.range) {
-                this.inc *= -1;
-            } else if (this.currentX < this.x) {
-                this.inc *= -1;
-            }
-        } else {
-            this.currentY += this.inc;
-            if (this.currentY >= this.y + this.range) {
-                this.inc *= -1;
-            } else if (this.currentY < this.y) {
-                this.inc *= -1;
-            }
-        }
-
+        v.rotate(0.05);
+        this.currentX = x+v.x;
+        this.currentY = y+v.y;
     }
+
     this.draw = function () {
         this.update();
-        push()
+        push();
         fill('red');
-        ellipse(this.currentX-100, this.currentY, 20, 20);
-        pop()
+        translate(this.x, this.y)
+        ellipse(v.x, v.y, 20, 20);
+        pop();
     }
     this.checkContact = function (gc_x, gc_y) {
-        var d = dist(gc_x, gc_y-25, this.currentX, this.currentY)
-        if (d<20) {
+        // Check rectangle overlap - rect(x1, y1, x2, y2)
+        // charRect = rect(gc_x-10, gc_y-80, gc_x+10, gc_y);
+        // fireRect = rect(this.currentX-10, this.currentY-20, this.currentX+10, this.currentY+20);
+        // RectA.Left < RectB.Right && RectA.Right > RectB.Left && RectA.Top > RectB.Bottom && RectA.Bottom < RectB.Top
+        if (gc_x-10 < this.currentX+10 && gc_x+10 > this.currentX-10 && gc_y-80 < this.currentY+10 && gc_y > this.currentY-10) {
             return true;
         }
         return false;
     }
 }
-
-// Flagpole
 function createFlagpole(x) {
     var f = {
         x: x,
@@ -678,8 +662,6 @@ function createFlagpole(x) {
     f.setup(x);
     return f
 }
-
-// Lives
 function drawLives(lives) {
     push();
     fill(0);
@@ -705,8 +687,6 @@ function drawLives(lives) {
 
     }
 }
-
-// Score
 function drawScore() {
     push();
     fill(0);
