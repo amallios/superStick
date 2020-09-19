@@ -1,7 +1,89 @@
-var gameChar, mountains, clouds, trees, canyons, collectables, flagpole, fishes, fires, scrollPos,
-    gameChar_world_x, floorPos_y, jumpSound, coinSound, levelSound, lifeSound, themeSound, gameStatus;
+// ===============
+// Coversheet info
+// ===============
 
+// Candidate Number: DP1082
+// Degree Title: BSc Computer Science
+// Course Title: Introduction to Programming I
+// Course Code: CM1005
+
+// ==================
+// Extension Comments
+// ==================
+
+// ----------------------------
+// Extension 1 - Create enemies
+// ----------------------------
+// My first extension is the enemy creation extension and there were 2 points that I struggled with the most:
+// - The first was the collision as a condition for losing a life. I found out that using two points and trying to
+// calculate the distance between them was not producing accurate results. I found out that it is best calculated by
+// creating two rectangles and investigating whether they overlap. I also learned the algorithm for this which is that
+// an overlap satisfies 4 conditions:
+// RectA.Left < RectB.Right && RectA.Right > RectB.Left && RectA.Top > RectB.Bottom && RectA.Bottom < RectB.Top.
+// - I also faced a bug because I was not able to create collision between the character and the rotating vector.
+// After filling out my code with control.logs I realised that "vector.x" shows the relative coordinates  to the centre
+// of the vector, so I had to use "x + vector.x" instead.
+
+// -----------------------
+// Extension 2 - Add sound
+// -----------------------
+
+// The second extension is the addition of sound. I browsed the sound library freesound.org for free to use sounds.
+// The trickiest part was managing the background theme song and learning how to use loop() and how to start and stop
+// the song by looping according to gameplay events. I also had to tweak the sound levels so that they are as well
+// balanced as possible.
+// The biggest bug I faced was within my checkWinLose() function. At the end of the game whether winning or losing the
+// sound would continue playing and when I was using the Sound.stop() function of p5.js I was dealing with a very
+// annoying repetitive and increasing noise. I spent a lot of time trying to understand this bug until I realised that
+// it was due to me not ending the draw loop of p5.js and it got resolved when I included a noLoop() function.
+
+// =================
+// Table of contents
+// =================
+
+//  1. Variables declaration        72-81
+//  2. p5.js functions              83-205
+//      2.1 preload
+//      2.2 setup
+//      2.3 draw
+//  3. Gameplay functions           207-238
+//      3.1 keyPressed
+//      3.2 keyReleased
+//  4. Back-End functions           240-341
+//      4.1 startGame
+//      4.2 loseLife
+//      4.3 winLose
+//  5. Front-End functions          343-812
+//      5.1 instructions
+//      5.2 createGameCharacter
+//      5.3 drawLives
+//      5.4 drawScore
+//      5.5 createMountain
+//      5.6 createCloud
+//      5.7 createTree
+//      5.8 createCanyon
+//      5.9 createCollectable
+//      5.10 createFlagpole
+//      5.11 Fish
+//      5.12 Fire
+
+// ============================== Start of Code ==============================
+
+// -----------------
+// Declare Variables
+// -----------------
+
+// Game elements variables
+var gameChar, mountains, clouds, trees, canyons, collectables, flagpole, fishes, fires;
+// Game mechanics variables
+var scrollPos, gameChar_world_x, floorPos_y
+// Game sound variables
+var jumpSound, coinSound, levelSound, lifeSound, themeSound;
+
+// ---------------
 // p5.js functions
+// ---------------
+
 function preload() {
     soundFormats('mp3','wav');
 
@@ -17,6 +99,7 @@ function preload() {
     themeSound = loadSound('media/soundfiles/theme.wav');
     themeSound.setVolume(0.1);
 }
+
 function setup () {
     createCanvas(1024, 576, noLoop());
     floorPos_y = height * 3/4;
@@ -24,11 +107,10 @@ function setup () {
 
     // Create Game Character
     gameChar = createGameCharacter();
-
-    gameStatus=isLooping();
-
+    // Create game elements
     startGame();
 }
+
 function draw () {
     background('skyblue');
     noStroke();
@@ -37,17 +119,7 @@ function draw () {
 
     // Gameplay instructions
     if (isLooping()==false) {
-        push();
-        textSize(32)
-        fill('red')
-        text("Superstick", 20, 150);
-        textSize(24)
-        fill('black')
-        text("Avoid enemies, collect coins and reach the finish flag to win", 20, 200);
-        text("Use the ARROW KEYS to move superstick", 20, 250);
-        text("Use the SPACEBAR to jump", 20, 300);
-        text("Press ENTER to start game", 20, 350);
-        pop();
+        instructions();
     } else {
         // Save drawing style settings
         push();
@@ -82,20 +154,17 @@ function draw () {
             }
         }
 
-        // Draw flagpole
+        // Draw and check flagpole
         flagpole.check();
         flagpole.draw();
 
-        // Draw enemies
+        // Draw enemies and check lose life conditions
         for (var i=0; i<fishes.length; i++) {
             fishes[i].draw();
-            var isContact = fishes[i].checkContact(gameChar_world_x, gameChar.y);
+            let isContact = fishes[i].checkContact(gameChar_world_x, gameChar.y);
             if (isContact) {
                 if(gameChar.lives >0) {
-                    gameChar.lives--;
-                    lifeSound.play();
-                    themeSound.stop();
-                    startGame();
+                    loseLife();
                     break;
                 }
             }
@@ -103,13 +172,10 @@ function draw () {
 
         for (var i=0; i<fires.length; i++) {
             fires[i].draw();
-            var isContact = fires[i].checkContact(gameChar_world_x, gameChar.y);
+            let isContact = fires[i].checkContact(gameChar_world_x, gameChar.y);
             if (isContact) {
                 if (gameChar.lives > 0) {
-                    gameChar.lives--;
-                    lifeSound.play();
-                    themeSound.stop();
-                    startGame();
+                    loseLife();
                     break;
                 }
             }
@@ -138,7 +204,10 @@ function draw () {
     }
 }
 
+// ------------------
 // Gameplay functions
+// ------------------
+
 function keyPressed(){
     if(keyCode == 37){
         gameChar.isLeft=true;
@@ -149,14 +218,17 @@ function keyPressed(){
         gameChar.y -= 100;
         jumpSound.play();
     }
+    // Start the game with Enter at the intro screen
     if(keyCode == 13) {
         loop();
     }
+    // Restart the game with "R" after win or lose
     if(keyCode == 82 && (gameChar.lives==0 || flagpole.isReached)){
         setup();
         draw();
     }
 }
+
 function keyReleased() {
     if(keyCode == 37){
         gameChar.isLeft=false;
@@ -165,7 +237,10 @@ function keyReleased() {
     }
 }
 
+// ------------------
 // Back-End functions
+// ------------------
+
 function startGame() {
     // Initial character position
     gameChar.x = width/10;
@@ -201,7 +276,7 @@ function startGame() {
     canyons.push(createCanyon(1100));
     canyons.push(createCanyon(1500));
 
-    // Create collectable
+    // Create collectables
     collectables = [];
     collectables.push(createCollectable(600, floorPos_y-random(50,150)));
     collectables.push(createCollectable(800, floorPos_y-random(50,150)));
@@ -229,8 +304,18 @@ function startGame() {
     // Variable to store the real position of the gameChar in the game world.
     gameChar_world_x = gameChar.x - scrollPos;
 }
+
+function loseLife() {
+    // Result of collision or falling into a canyon
+    gameChar.lives--;
+    lifeSound.play();
+    themeSound.stop();
+    startGame();
+}
+
 function checkWinLose() {
     push();
+    // Game over screen when lives are 0
     if (gameChar.lives<1) {
         textSize(32)
         fill('darkred')
@@ -241,6 +326,7 @@ function checkWinLose() {
         noLoop();
         themeSound.stop();
     }
+    // Winning screen when flagpole reached
     if (flagpole.isReached) {
         textSize(32)
         fill('green')
@@ -254,9 +340,28 @@ function checkWinLose() {
     pop();
 }
 
+// -------------------
 // Front-End functions
+// -------------------
+
+function instructions () {
+    // Intro screen with gameplay information
+    push();
+    textSize(32)
+    fill('red')
+    text("Superstick", 20, 150);
+    textSize(24)
+    fill('black')
+    text("Avoid enemies, collect coins and reach the finish flag to win", 20, 200);
+    text("Use the ARROW KEYS to move Superstick", 20, 250);
+    text("Use the SPACEBAR to jump", 20, 300);
+    text("Press ENTER to start game", 20, 350);
+    pop();
+}
+
 function createGameCharacter() {
-    var c = {
+    // Game character object including all necessary functions for clean code and scalability reasons
+    let c = {
         setup: function (x, y, isLeft, isRight, isFalling, isPlummeting, lives, score) {
             this.x = 0;
             this.y = 0;
@@ -269,8 +374,8 @@ function createGameCharacter() {
         },
 
         draw: function () {
-            var x = this.x;
-            var y = this.y;
+            let x = this.x;
+            let y = this.y;
             if(this.isLeft && this.isFalling) {
                 noStroke();
                 fill(255, 0, 0);
@@ -389,8 +494,44 @@ function createGameCharacter() {
     c.setup();
     return c;
 }
+
+function drawLives(lives) {
+    push();
+    fill(0);
+    noStroke();
+    textSize(24);
+    text("Lives: ", 20, 50);
+    pop();
+
+    for (var i=lives; i>0; i--) {
+        let x = 50*(i+1);
+        noStroke();
+        fill(color(255, 0, 0));
+        triangle(x, 38, x-10, 60, x+10, 60);
+        stroke('black');
+        fill('white');
+        ellipse(x, 30, 10, 10);
+        fill(255, 0, 0);
+        line(x, 35, x, 55);
+        line(x, 38, x-10, 50);
+        line(x, 38, x+10, 50);
+        line(x, 55, x-10, 67);
+        line(x, 55, x+10, 67);
+
+    }
+}
+
+function drawScore() {
+    push();
+    fill(0);
+    noStroke();
+    textSize(24);
+    text("Score: " + gameChar.score, 20, 100);
+    pop();
+}
+
 function createMountain(x) {
-    var m = {
+    let m = {
         x: x,
 
         setup: function (x, y, size, colour) {
@@ -414,8 +555,9 @@ function createMountain(x) {
     m.setup(x);
     return m;
 }
+
 function createCloud(x,y) {
-    var c = {
+    let c = {
         x: x,
         y: y,
 
@@ -436,8 +578,9 @@ function createCloud(x,y) {
     c.setup(x,y);
     return c;
 }
+
 function createTree(x) {
-    var t = {
+    let t = {
         x: x,
 
         setup: function(x, y, size, colour) {
@@ -457,8 +600,9 @@ function createTree(x) {
     t.setup(x);
     return t;
 }
+
 function createCanyon(x) {
-    var c = {
+    let c = {
         x: x,
 
         setup: function(x, y, size) {
@@ -496,8 +640,9 @@ function createCanyon(x) {
     c.setup(x);
     return c;
 }
+
 function createCollectable(x,y) {
-    var c = {
+    let c = {
         x: x,
         y: y,
 
@@ -535,79 +680,9 @@ function createCollectable(x,y) {
     c.setup(x,y);
     return c;
 }
-function Fish(x, y) {
-    this.x = x;
-    this.y = y;
 
-    this.currentY = y;
-    this.inc = -5;
-    this.range = 250;
-
-    this.update = function () {
-        this.currentY += this.inc;
-        if (this.currentY >= this.y + this.range) {
-            this.inc *= -1;
-        } else if (this.currentY < this.y) {
-            this.inc *= -1;
-        }
-    }
-    this.draw = function () {
-        this.update();
-        push()
-        if (this.currentY < 4*height/5) {
-            fill('teal');
-            quad(this.x, this.currentY, this.x+10, this.currentY+15,
-                this.x, this.currentY+30, this.x-10, this.currentY+15)
-            triangle(this.x, this.currentY+25, this.x+5, this.currentY+35, this.x-5, this.currentY+35)
-        }
-        pop()
-    }
-    this.checkContact = function (gc_x, gc_y) {
-        // Check rectangle overlap - rect(x1, y1, x2, y2)
-        // charRect = rect(gc_x-10, gc_y-80, gc_x+10, gc_y);
-        // fishRect = rect(this.x-10, this.currentY-20, this.x+10, this.currentY);
-        // RectA.Left < RectB.Right && RectA.Right > RectB.Left && RectA.Top > RectB.Bottom && RectA.Bottom < RectB.Top
-        if (gc_x-10 < this.x+10 && gc_x+10 > this.x-10 && gc_y-80 < this.currentY+20 && gc_y > this.currentY-20) {
-            return true;
-        }
-        return false;
-    }
-}
-function Fire(x, y) {
-    this.x = x;
-    this.y = y;
-    this.currentX = 0;
-    this.currentY = 0;
-    let f = createVector(500, 1000);
-    let v = p5.Vector.mult(f, 0.1);
-
-    this.update = function () {
-        v.rotate(0.05);
-        this.currentX = x+v.x;
-        this.currentY = y+v.y;
-    }
-
-    this.draw = function () {
-        this.update();
-        push();
-        fill('red');
-        translate(this.x, this.y)
-        ellipse(v.x, v.y, 20, 20);
-        pop();
-    }
-    this.checkContact = function (gc_x, gc_y) {
-        // Check rectangle overlap - rect(x1, y1, x2, y2)
-        // charRect = rect(gc_x-10, gc_y-80, gc_x+10, gc_y);
-        // fireRect = rect(this.currentX-10, this.currentY-20, this.currentX+10, this.currentY+20);
-        // RectA.Left < RectB.Right && RectA.Right > RectB.Left && RectA.Top > RectB.Bottom && RectA.Bottom < RectB.Top
-        if (gc_x-10 < this.currentX+10 && gc_x+10 > this.currentX-10 && gc_y-80 < this.currentY+10 && gc_y > this.currentY-10) {
-            return true;
-        }
-        return false;
-    }
-}
 function createFlagpole(x) {
-    var f = {
+    let f = {
         x: x,
 
         setup: function () {
@@ -652,7 +727,7 @@ function createFlagpole(x) {
         },
 
         check: function () {
-            var d = abs(gameChar_world_x - flagpole.x);
+            let d = abs(gameChar_world_x - flagpole.x);
             if(d<15) {
                 flagpole.isReached = true;
                 levelSound.play();
@@ -662,36 +737,76 @@ function createFlagpole(x) {
     f.setup(x);
     return f
 }
-function drawLives(lives) {
-    push();
-    fill(0);
-    noStroke();
-    textSize(24);
-    text("Lives: ", 20, 50);
-    pop();
 
-    for (var i=lives; i>0; i--) {
-        var x = 50*(i+1);
-        noStroke();
-        fill(color(255, 0, 0));
-        triangle(x, 38, x-10, 60, x+10, 60);
-        stroke('black');
-        fill('white');
-        ellipse(x, 30, 10, 10);
-        fill(255, 0, 0);
-        line(x, 35, x, 55);
-        line(x, 38, x-10, 50);
-        line(x, 38, x+10, 50);
-        line(x, 55, x-10, 67);
-        line(x, 55, x+10, 67);
+function Fish(x, y) {
+    this.x = x;
+    this.y = y;
 
+    this.currentY = y;
+    this.inc = -5;
+    this.range = 250;
+
+    this.update = function () {
+        this.currentY += this.inc;
+        if (this.currentY >= this.y + this.range) {
+            this.inc *= -1;
+        } else if (this.currentY < this.y) {
+            this.inc *= -1;
+        }
+    }
+    this.draw = function () {
+        this.update();
+        push()
+        if (this.currentY < 4*height/5) {
+            fill('teal');
+            quad(this.x, this.currentY, this.x+10, this.currentY+15,
+                this.x, this.currentY+30, this.x-10, this.currentY+15)
+            triangle(this.x, this.currentY+25, this.x+5, this.currentY+35, this.x-5, this.currentY+35)
+        }
+        pop()
+    }
+    this.checkContact = function (gc_x, gc_y) {
+        // Check rectangle overlap - rect(x1, y1, x2, y2)
+        // charRect = rect(gc_x-10, gc_y-80, gc_x+10, gc_y);
+        // fishRect = rect(this.x-10, this.currentY-20, this.x+10, this.currentY);
+        // RectA.Left < RectB.Right && RectA.Right > RectB.Left && RectA.Top > RectB.Bottom && RectA.Bottom < RectB.Top
+        if (gc_x-10 < this.x+10 && gc_x+10 > this.x-10 && gc_y-80 < this.currentY+20 && gc_y > this.currentY-20) {
+            return true;
+        }
+        return false;
     }
 }
-function drawScore() {
-    push();
-    fill(0);
-    noStroke();
-    textSize(24);
-    text("Score: " + gameChar.score, 20, 100);
-    pop();
+
+function Fire(x, y) {
+    this.x = x;
+    this.y = y;
+    this.currentX = 0;
+    this.currentY = 0;
+    let f = createVector(500, 1000);
+    let v = p5.Vector.mult(f, 0.1);
+
+    this.update = function () {
+        v.rotate(0.05);
+        this.currentX = x+v.x;
+        this.currentY = y+v.y;
+    }
+
+    this.draw = function () {
+        this.update();
+        push();
+        fill('red');
+        translate(this.x, this.y)
+        ellipse(v.x, v.y, 20, 20);
+        pop();
+    }
+    this.checkContact = function (gc_x, gc_y) {
+        // Check rectangle overlap - rect(x1, y1, x2, y2)
+        // charRect = rect(gc_x-10, gc_y-80, gc_x+10, gc_y);
+        // fireRect = rect(this.currentX-10, this.currentY-20, this.currentX+10, this.currentY+20);
+        // RectA.Left < RectB.Right && RectA.Right > RectB.Left && RectA.Top > RectB.Bottom && RectA.Bottom < RectB.Top
+        if (gc_x-10 < this.currentX+10 && gc_x+10 > this.currentX-10 && gc_y-80 < this.currentY+10 && gc_y > this.currentY-10) {
+            return true;
+        }
+        return false;
+    }
 }
